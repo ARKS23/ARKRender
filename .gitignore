@@ -1,0 +1,22 @@
+# 忽略 Visual Studio / Rider 的 IDE 缓存和用户设置
+# (来自你的截图)
+.vs/
+*.vcxproj.user
+*.sln.DotSettings.user
+x64/
+Debug/
+Release/
+bin/
+obj/
+
+# 忽略常见的编译产物
+*.obj
+*.pdb
+*.ilk
+*.exe
+*.dll
+*.lib
+*.tlb
+*.pch
+*.suo
+*.tga
