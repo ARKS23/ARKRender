@@ -7,6 +7,60 @@
 
 const std::string FILEPATH = "E:/code/TinyRenderer/obj/diablo3_pose.obj";
 
+int crossProduct2D(const std::vector<int> &point1, const std::vector<int> &point2) {
+    /* 2D叉乘 */
+    return point1[0] * point2[1] - point1[1] * point2[0];
+}
+
+std::vector<int> getVector(const std::vector<int> &p1, const std::vector<int> &p2) {
+    /* 根据点求向量 */
+    return {p2[0] - p1[0], p2[1] - p1[1]};
+}
+
+vec3 barycentric(const std::vector<std::vector<int>> &points, const std::vector<int> &curPoint) {
+    /* 计算curPoint在三角形中的重心坐标 */
+    vec3 coordinates;
+    std::vector<int> A = points[0], B = points[1], C = points[2]; // 三角形的三个点
+
+    /* 获取向量 */
+    std::vector<int> AB = getVector(A, B), AC = getVector(A, C);
+    std::vector<int> PA = getVector(curPoint, A), PB = getVector(curPoint, B), PC = getVector(curPoint, C);
+    int S_ABC = crossProduct2D(AB, AC); //总面积
+
+    // 必须保持 (A,B), (B,C), (C,A) 的循环
+    int S_PCA = crossProduct2D(PC, PA);
+    int S_APB = crossProduct2D(PA, PB);
+    int S_BPC = crossProduct2D(PB, PC);
+
+    // 计算对应的权重，这里注意不能弄乱命名，否则之后的深度z会计算错误
+    double alpha = static_cast<double>(S_BPC) / S_ABC;
+    double beta = static_cast<double>(S_PCA) / S_ABC;
+    double gamma = static_cast<double>(S_APB) / S_ABC;
+
+    coordinates.x = alpha;
+    coordinates.y = beta;
+    coordinates.z = gamma;
+
+    return coordinates;
+}
+
+void rasterization(TGAImage &framebuffer, const std::vector<std::vector<int>> &points, TGAColor color=red) {
+    int min_x = points[0][0], min_y = points[0][1];
+    int max_x = min_x, max_y = min_y;
+    for (std::vector<int> point: points) { // 包围盒优化
+        min_x = std::min(min_x, point[0]); min_y = std::min(min_y, point[1]);
+        max_x = std::max(max_x, point[0]); max_y = std::max(max_y, point[1]);
+    }
+
+    for (int x = min_x; x <= max_x; ++x) {  // 遍历盒内的坐标，进行光栅化
+        for (int y = min_y; y <= max_y; ++y) {
+            vec3 coordinates = barycentric(points, {x, y}); // 计算重心坐标
+            if (coordinates.x < 0 || coordinates.y < 0 || coordinates.z < 0) continue;  // 检查是否在三角形内
+            framebuffer.set(x, y, color); // 在三角形内，进行颜色绘制（待改进）
+        }
+    }
+}
+
 void analyzeModel() {
     // 解析obj文件
     Model monsterModel(FILEPATH);
@@ -30,9 +84,12 @@ void analyzeModel() {
             points.push_back(point);
         }
         // 绘制线条
-        BresenhamLine(framebuffer, points[0], points[1], red);
-        BresenhamLine(framebuffer, points[0], points[2], red);
-        BresenhamLine(framebuffer, points[1], points[2], red);
+        BresenhamLine(framebuffer, points[0], points[1], white);
+        BresenhamLine(framebuffer, points[0], points[2], white);
+        BresenhamLine(framebuffer, points[1], points[2], white);
+
+        // 光栅化逻辑
+        rasterization(framebuffer, points, red);
     }
 
     framebuffer.write_tga_file("E:/code/TinyRenderer/images/monster.tga");
