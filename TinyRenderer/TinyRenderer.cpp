@@ -37,6 +37,7 @@ vec3 barycentric(const std::vector<std::vector<int>> &points, const std::vector<
     double beta = static_cast<double>(S_PCA) / S_ABC;
     double gamma = static_cast<double>(S_APB) / S_ABC;
 
+    // 重心坐标
     coordinates.x = alpha;
     coordinates.y = beta;
     coordinates.z = gamma;
@@ -52,6 +53,7 @@ void rasterization(TGAImage &framebuffer, const std::vector<std::vector<int>> &p
         max_x = std::max(max_x, point[0]); max_y = std::max(max_y, point[1]);
     }
 
+    for (int c = 0; c < 3; c++) color[c] = std::rand() % 255; // 颜色随机填入
     for (int x = min_x; x <= max_x; ++x) {  // 遍历盒内的坐标，进行光栅化
         for (int y = min_y; y <= max_y; ++y) {
             vec3 coordinates = barycentric(points, {x, y}); // 计算重心坐标
@@ -83,10 +85,12 @@ void analyzeModel() {
             point[1] = static_cast<int>((vertex.y + 1.0) * height / 2.0);
             points.push_back(point);
         }
+
         // 绘制线条
-        BresenhamLine(framebuffer, points[0], points[1], white);
-        BresenhamLine(framebuffer, points[0], points[2], white);
-        BresenhamLine(framebuffer, points[1], points[2], white);
+        //BresenhamLine(framebuffer, points[0], points[1], white);
+        //BresenhamLine(framebuffer, points[0], points[2], white);
+        //BresenhamLine(framebuffer, points[1], points[2], white);
+        drawLineUtils::drawTriangle(framebuffer, points[0], points[1], points[2], { white, white, white });
 
         // 光栅化逻辑
         rasterization(framebuffer, points, red);
