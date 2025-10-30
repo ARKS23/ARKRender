@@ -10,40 +10,48 @@ template<int n> struct vec {
 };
 
 template<int n> double operator*(const vec<n>& lhs, const vec<n>& rhs) {
-    double ret = 0;                         // N.B. Do not ever, ever use such for loops! They are highly confusing.
-    for (int i = n; i--; ret += lhs[i] * rhs[i]); // Here I used them as a tribute to old-school game programmers fighting for every CPU cycle.
-    return ret;                             // Once upon a time reverse loops were faster than the normal ones, it is not the case anymore.
+    /* 向量的点积操作 */
+    double ret = 0;                        
+    //for (int i = n; i--; ret += lhs[i] * rhs[i]);
+    for (int i = n; i >= 0; --i) ret += lhs[i] * rhs[i];
+    return ret;                           
 }
 
 template<int n> vec<n> operator+(const vec<n>& lhs, const vec<n>& rhs) {
+    /* 向量加法 */
     vec<n> ret = lhs;
     for (int i = n; i--; ret[i] += rhs[i]);
     return ret;
 }
 
 template<int n> vec<n> operator-(const vec<n>& lhs, const vec<n>& rhs) {
+    /* 向量剑法 */
     vec<n> ret = lhs;
     for (int i = n; i--; ret[i] -= rhs[i]);
     return ret;
 }
 
 template<int n> vec<n> operator*(const vec<n>& lhs, const double& rhs) {
+    /* 向量 * 数 的运算 */
     vec<n> ret = lhs;
     for (int i = n; i--; ret[i] *= rhs);
     return ret;
 }
 
 template<int n> vec<n> operator*(const double& lhs, const vec<n>& rhs) {
+    /* 向量 * 数 的运算: 复用【 向量 * 数】的逻辑  */
     return rhs * lhs;
 }
 
 template<int n> vec<n> operator/(const vec<n>& lhs, const double& rhs) {
+    /* 向量 / 数 的运算 */
     vec<n> ret = lhs;
     for (int i = n; i--; ret[i] /= rhs);
     return ret;
 }
 
 template<int n> std::ostream& operator<<(std::ostream& out, const vec<n>& v) {
+    /* 方便cout输出 */
     for (int i = 0; i < n; i++) out << v[i] << " ";
     return out;
 }
@@ -87,34 +95,47 @@ inline vec3 cross(const vec3& v1, const vec3& v2) {
 template<int n> struct dt;
 
 template<int nrows, int ncols> struct mat {
-    vec<ncols> rows[nrows] = { {} };
+    vec<ncols> rows[nrows] = { {} }; // 行向量数组，如rows[0]是一个vec<ncols>类型的向量
 
     vec<ncols>& operator[] (const int idx) { assert(idx >= 0 && idx < nrows); return rows[idx]; }
     const vec<ncols>& operator[] (const int idx) const { assert(idx >= 0 && idx < nrows); return rows[idx]; }
 
     double det() const {
+        /* 计算矩阵的行列式 */
         return dt<ncols>::det(*this);
     }
 
     double cofactor(const int row, const int col) const {
+        /* 计算代数余子式： 创建子矩阵(n - 1)×(n - 1)的子矩阵submatrix然后递归调用det(),最后根据行和列返回正负 */
         mat<nrows - 1, ncols - 1> submatrix;
-        for (int i = nrows - 1; i--; )
-            for (int j = ncols - 1; j--; submatrix[i][j] = rows[i + int(i >= row)][j + int(j >= col)]);
-        return submatrix.det() * ((row + col) % 2 ? -1 : 1);
+        for (int i = 0; i < nrows - 1; ++i) {
+            for (int j = 0; j < ncols - 1; ++j) {
+                // 代数余子式行列式对应的矩阵计算源索引
+                int source_i = (i < row) ? i : i + 1;
+                int source_j = (j < col) ? j : j + 1;
+                submatrix[i][j] = rows[source_i][source_j];
+            }
+        }
+        return submatrix.det() * ((row + col) % 2 ? -1 : 1); // 代数余子式的正负
     }
 
     mat<nrows, ncols> invert_transpose() const {
-        mat<nrows, ncols> adjugate_transpose; // transpose to ease determinant computation, check the last line
+        /* 计算(M^-1)^T */
+        mat<nrows, ncols> adjugate_transpose; 
+        // 计算伴随矩阵
         for (int i = nrows; i--; )
             for (int j = ncols; j--; adjugate_transpose[i][j] = cofactor(i, j));
+        // 转置逆矩阵 = 伴随矩阵 / 行列式； 分母其实是拉普拉斯展开计算了原矩阵的行列式det(M)
         return adjugate_transpose / (adjugate_transpose[0] * rows[0]);
     }
 
     mat<nrows, ncols> invert() const {
+        /* 计算逆矩阵，复用之前的invert_transpose，再进行transpose,就是invert了 */
         return invert_transpose().transpose();
     }
 
     mat<ncols, nrows> transpose() const {
+        /* 转置矩阵，行列互换 */
         mat<ncols, nrows> ret;
         for (int i = ncols; i--; )
             for (int j = nrows; j--; ret[i][j] = rows[j][i]);

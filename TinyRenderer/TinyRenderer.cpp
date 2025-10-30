@@ -45,7 +45,8 @@ vec3 barycentric(const std::vector<std::vector<int>> &points, const std::vector<
     return coordinates;
 }
 
-void rasterization(TGAImage &framebuffer, const std::vector<std::vector<int>> &points, TGAColor color=red) {
+void rasterization(TGAImage &framebuffer, TGAImage &zbuffer, const std::vector<std::vector<int>> &points, 
+                   const std::vector<double> &points_z, TGAColor color=red) {
     int min_x = points[0][0], min_y = points[0][1];
     int max_x = min_x, max_y = min_y;
     for (std::vector<int> point: points) { // 包围盒优化
@@ -53,11 +54,19 @@ void rasterization(TGAImage &framebuffer, const std::vector<std::vector<int>> &p
         max_x = std::max(max_x, point[0]); max_y = std::max(max_y, point[1]);
     }
 
-    for (int c = 0; c < 3; c++) color[c] = std::rand() % 255; // 颜色随机填入
+    for (int c = 0; c < 3; c++) color[c] = std::rand() % 255; // 每块三角形颜色随机填入
+
     for (int x = min_x; x <= max_x; ++x) {  // 遍历盒内的坐标，进行光栅化
         for (int y = min_y; y <= max_y; ++y) {
             vec3 coordinates = barycentric(points, {x, y}); // 计算重心坐标
             if (coordinates.x < 0 || coordinates.y < 0 || coordinates.z < 0) continue;  // 检查是否在三角形内
+            // Z-Buffer处理:目前精度不足待改进
+            int za = static_cast<int>((points_z[0] + 1) * 255 / 2);
+            int zb = static_cast<int>((points_z[1] + 1) * 255 / 2);
+            int zc = static_cast<int>((points_z[2] + 1) * 255 / 2);
+            unsigned char z = static_cast<unsigned char>(coordinates.x * za + coordinates.y * zb + coordinates.z * zc);
+            if (z <= zbuffer.get(x, y)[0]) continue; // z-buffer处理
+            zbuffer.set(x, y, { z }); // 灰度图着色
             framebuffer.set(x, y, color); // 在三角形内，进行颜色绘制（待改进）
         }
     }
@@ -70,6 +79,7 @@ void analyzeModel() {
     const int height = 800;
     const int width = 800;
     TGAImage framebuffer(width, height, TGAImage::RGB);
+    TGAImage zbuffer(width, height, TGAImage::GRAYSCALE); // 灰度图,内有get(x,y)也可作为深度缓存（但精度不足）
 
     int faceNum = monsterModel.nfaces();
     for (int i = 0; i < faceNum; ++i) {   // 遍历模型中的所有面
@@ -77,26 +87,28 @@ void analyzeModel() {
         for (int j = 0; j < 3; ++j) {  // 获取面的三个顶点
             vertexArr.push_back(monsterModel.vert(i, j));
         }
-        // 进行正交投影
+        // 进行正交投影: 后续进行封装
         std::vector<std::vector<int>> points;
+        std::vector<double> points_z; // 进行深度缓存时要使用
         for (vec4 vertex : vertexArr) {
             std::vector<int> point(2);
             point[0] = static_cast<int>((vertex.x + 1.0) * width / 2.0);
             point[1] = static_cast<int>((vertex.y + 1.0) * height / 2.0);
             points.push_back(point);
+
+            // 处理z
+            points_z.push_back(vertex.z);
         }
 
-        // 绘制线条
-        //BresenhamLine(framebuffer, points[0], points[1], white);
-        //BresenhamLine(framebuffer, points[0], points[2], white);
-        //BresenhamLine(framebuffer, points[1], points[2], white);
-        drawLineUtils::drawTriangle(framebuffer, points[0], points[1], points[2], { white, white, white });
+        // 绘制三角形面
+        //drawLineUtils::drawTriangle(framebuffer, points[0], points[1], points[2], { white, white, white });
 
         // 光栅化逻辑
-        rasterization(framebuffer, points, red);
+        rasterization(framebuffer, zbuffer, points, points_z);
     }
 
     framebuffer.write_tga_file("E:/code/TinyRenderer/images/monster.tga");
+    zbuffer.write_tga_file("E:/code/TinyRenderer/images/zbuffer.tga");
 }
 
 int main()
