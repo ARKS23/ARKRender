@@ -27,6 +27,15 @@
     <ClCompile Include="drawLine.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="IShader.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FlatShader.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="geometry.h">
@@ -39,6 +48,15 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="tgaimage.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="IShader.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FlatShader.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -4,116 +4,137 @@
 #include "drawLine.h"
 #include "model.h"
 #include <iostream>
+#include "Renderer.h"
+#include "FlatShader.h"
+#include <cmath>        
+#include <windows.h>    
 
+#define M_PI 3.14159265358979323846
+
+const int width = 800;
+const int height = 800;
 const std::string FILEPATH = "E:/code/TinyRenderer/obj/diablo3_pose.obj";
+const std::string OUTPATH = "E:/code/TinyRenderer/images/monster.tga";
 
-int crossProduct2D(const std::vector<int> &point1, const std::vector<int> &point2) {
-    /* 2D叉乘 */
-    return point1[0] * point2[1] - point1[1] * point2[0];
+
+mat<4, 4> lookat(vec3 eye, vec3 center, vec3 up) {
+    vec3 z = normalized(center - eye); // 左手坐标系前向量Z
+    vec3 x = normalized(cross(up, z)); // 计算右向量X
+    vec3 y = normalized(cross(z, x));  // 计算上向量Y
+
+    // 旋转整个世界，让x,y,z分别对齐到世界坐标系的(1, 0, 0),(0, 1, 0),(0,0,1)
+    mat<4, 4> Minv = { {
+        {x.x, x.y, x.z, 0},
+        {y.x, y.y, y.z, 0},
+        {z.x, z.y, z.z, 0},
+        {0, 0, 0, 1}
+    } };
+
+    // 让世界移动-eye距离，eye点和世界原点(0,0,0)重合
+    mat<4, 4> Tr = { {
+        {1, 0, 0, -eye.x},
+        {0, 1, 0, -eye.y},
+        {0, 0, 1, -eye.z},
+        {0, 0, 0, 1}
+    } };
+    return Minv * Tr; // 先平移再旋转
 }
 
-std::vector<int> getVector(const std::vector<int> &p1, const std::vector<int> &p2) {
-    /* 根据点求向量 */
-    return {p2[0] - p1[0], p2[1] - p1[1]};
+mat<4, 4> projection(double fov_y_degrees, double aspect_ratio, double n, double f) {
+    // 1. 计算 r 和 t
+    double fov_y_radians = fov_y_degrees * M_PI / 180.0;
+    double t = n * std::tan(fov_y_radians / 2.0);
+    double r = t * aspect_ratio;
+    double l = -r;
+    double b = -t;
+
+    // 2. 使用推导的 LHS 矩阵公式
+    mat<4, 4> P = { {
+        {2 * n / (r - l), 0,        (r + l) / (r - l),  0}, // 注意: (r+l)/(r-l)
+        {0,         2 * n / (t - b), (t + b) / (t - b),  0}, // 注意: (t+b)/(t-b)
+        {0,         0,         f / (f - n),      -n * f / (f - n)},
+        {0,         0,         1,            0}
+    } };
+    return P;
 }
 
-vec3 barycentric(const std::vector<std::vector<int>> &points, const std::vector<int> &curPoint) {
-    /* 计算curPoint在三角形中的重心坐标 */
-    vec3 coordinates;
-    std::vector<int> A = points[0], B = points[1], C = points[2]; // 三角形的三个点
-
-    /* 获取向量 */
-    std::vector<int> AB = getVector(A, B), AC = getVector(A, C);
-    std::vector<int> PA = getVector(curPoint, A), PB = getVector(curPoint, B), PC = getVector(curPoint, C);
-    int S_ABC = crossProduct2D(AB, AC); //总面积
-
-    // 必须保持 (A,B), (B,C), (C,A) 的循环
-    int S_PCA = crossProduct2D(PC, PA);
-    int S_APB = crossProduct2D(PA, PB);
-    int S_BPC = crossProduct2D(PB, PC);
-
-    // 计算对应的权重，这里注意不能弄乱命名，否则之后的深度z会计算错误
-    double alpha = static_cast<double>(S_BPC) / S_ABC;
-    double beta = static_cast<double>(S_PCA) / S_ABC;
-    double gamma = static_cast<double>(S_APB) / S_ABC;
-
-    // 重心坐标
-    coordinates.x = alpha;
-    coordinates.y = beta;
-    coordinates.z = gamma;
-
-    return coordinates;
-}
-
-void rasterization(TGAImage &framebuffer, TGAImage &zbuffer, const std::vector<std::vector<int>> &points, 
-                   const std::vector<double> &points_z, TGAColor color=red) {
-    int min_x = points[0][0], min_y = points[0][1];
-    int max_x = min_x, max_y = min_y;
-    for (std::vector<int> point: points) { // 包围盒优化
-        min_x = std::min(min_x, point[0]); min_y = std::min(min_y, point[1]);
-        max_x = std::max(max_x, point[0]); max_y = std::max(max_y, point[1]);
-    }
-
-    for (int c = 0; c < 3; c++) color[c] = std::rand() % 255; // 每块三角形颜色随机填入
-
-    for (int x = min_x; x <= max_x; ++x) {  // 遍历盒内的坐标，进行光栅化
-        for (int y = min_y; y <= max_y; ++y) {
-            vec3 coordinates = barycentric(points, {x, y}); // 计算重心坐标
-            if (coordinates.x < 0 || coordinates.y < 0 || coordinates.z < 0) continue;  // 检查是否在三角形内
-            // Z-Buffer处理:目前精度不足待改进
-            int za = static_cast<int>((points_z[0] + 1) * 255 / 2);
-            int zb = static_cast<int>((points_z[1] + 1) * 255 / 2);
-            int zc = static_cast<int>((points_z[2] + 1) * 255 / 2);
-            unsigned char z = static_cast<unsigned char>(coordinates.x * za + coordinates.y * zb + coordinates.z * zc);
-            if (z <= zbuffer.get(x, y)[0]) continue; // z-buffer处理
-            zbuffer.set(x, y, { z }); // 灰度图着色
-            framebuffer.set(x, y, color); // 在三角形内，进行颜色绘制（待改进）
-        }
-    }
-}
-
-void analyzeModel() {
-    // 解析obj文件
-    Model monsterModel(FILEPATH);
-
-    const int height = 800;
-    const int width = 800;
-    TGAImage framebuffer(width, height, TGAImage::RGB);
-    TGAImage zbuffer(width, height, TGAImage::GRAYSCALE); // 灰度图,内有get(x,y)也可作为深度缓存（但精度不足）
-
-    int faceNum = monsterModel.nfaces();
-    for (int i = 0; i < faceNum; ++i) {   // 遍历模型中的所有面
-        std::vector<vec4> vertexArr;
-        for (int j = 0; j < 3; ++j) {  // 获取面的三个顶点
-            vertexArr.push_back(monsterModel.vert(i, j));
-        }
-        // 进行正交投影: 后续进行封装
-        std::vector<std::vector<int>> points;
-        std::vector<double> points_z; // 进行深度缓存时要使用
-        for (vec4 vertex : vertexArr) {
-            std::vector<int> point(2);
-            point[0] = static_cast<int>((vertex.x + 1.0) * width / 2.0);
-            point[1] = static_cast<int>((vertex.y + 1.0) * height / 2.0);
-            points.push_back(point);
-
-            // 处理z
-            points_z.push_back(vertex.z);
-        }
-
-        // 绘制三角形面
-        //drawLineUtils::drawTriangle(framebuffer, points[0], points[1], points[2], { white, white, white });
-
-        // 光栅化逻辑
-        rasterization(framebuffer, zbuffer, points, points_z);
-    }
-
-    framebuffer.write_tga_file("E:/code/TinyRenderer/images/monster.tga");
-    zbuffer.write_tga_file("E:/code/TinyRenderer/images/zbuffer.tga");
+mat<4, 4> identity() {
+    return { {
+        {1, 0, 0, 0},
+        {0, 1, 0, 0},
+        {0, 0, 1, 0},
+        {0, 0, 0, 1}
+    } };
 }
 
 int main()
 {
-    analyzeModel();
+    // --- 1. 初始化 (在循环外只执行一次) ---
+    std::cout << "初始化渲染器" << std::endl;
+    std::cout << "按下键盘左右按键旋转摄像机，\n按下ESC退出" << std::endl;
+
+    Renderer renderer(width, height);
+    Model monsterModel(FILEPATH);
+    FlatShader shader;
+
+    // 设置镜头 (Projection 矩阵)
+    renderer.set_projectionMatrix(projection(60.0, (double)width / height, 0.1, 100.0));
+
+    // 设置视口 (Viewport 矩阵)
+    renderer.set_viewportMatrix(0, 0, width, height);
+
+    // 设置 Model 矩阵 (让模型保持在原点)
+    shader.modelMatrix = identity();
+
+    vec3 eye = { 10, 0, 10 }; // 相机位置(按键改变)
+    vec3 center = { 0, 0, 0 }; // 看向原点
+    vec3 up = { 0, 1, 0 }; // Y轴上方向为“上”
+
+    // 相机状态相关
+    float cameraAngle = 0.f; //相机当前的旋转角度
+    const float cameraRadius = 3.f;  // 相机距中心点距离
+    const float rotationSpeed = 0.05f;  // 相机旋转幅度
+
+    while (true)
+    {
+        bool isInput = false;
+        // 检查 ESC 键是否被按下
+        if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+            break;
+        }
+        if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
+            cameraAngle -= rotationSpeed;
+            isInput = true;
+        }
+        if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
+            cameraAngle += rotationSpeed;
+            isInput = true;
+        }
+
+        // 使用三角函数计算相机在X和Z轴上的新位置，使其围绕(0,0,0)旋转
+        vec3 eye = {
+            (float)(sin(cameraAngle) * cameraRadius), // X
+            1.f,                                      // Y (保持一点高度)
+            (float)(cos(cameraAngle) * cameraRadius)  // Z
+        };
+        renderer.set_viewMatrix(lookat(eye, center, up)); // 更新view矩阵
+
+        if (!isInput) continue;
+
+        // 清理缓冲区
+        renderer.clear_framebuffer(black);
+        renderer.clear_zbuffer();
+
+        // 绘制
+        renderer.draw(&monsterModel, &shader);
+
+        // 保存结果
+        TGAImage& final_image = renderer.get_framebuffer();
+        final_image.write_tga_file(OUTPATH);
+
+        // 60fps  (1000ms / 16)
+        Sleep(16);
+    }
     return 0;
 }
 

@@ -128,14 +128,20 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="drawLine.cpp" />
+    <ClCompile Include="FlatShader.cpp" />
+    <ClCompile Include="IShader.cpp" />
     <ClCompile Include="model.cpp" />
+    <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="tgaimage.cpp" />
     <ClCompile Include="TinyRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="drawLine.h" />
+    <ClInclude Include="FlatShader.h" />
     <ClInclude Include="geometry.h" />
+    <ClInclude Include="IShader.h" />
     <ClInclude Include="model.h" />
+    <ClInclude Include="Renderer.h" />
     <ClInclude Include="tgaimage.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

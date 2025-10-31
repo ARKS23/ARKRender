@@ -49,7 +49,6 @@ Model::Model(const std::string filename) {
     }
 
     // 纹理加载
-    std::cerr << "# v# " << nverts() << " f# " << nfaces() << std::endl;
     auto load_texture = [&filename](const std::string suffix, TGAImage& img) {
         size_t dot = filename.find_last_of(".");
         if (dot == std::string::npos) return;
@@ -58,9 +57,9 @@ Model::Model(const std::string filename) {
         std::cerr << "texture file " << texfile << " loading " << (img.read_tga_file(texfile.c_str()) ? "ok" : "failed") << std::endl;
         };
     // 尝试加载三种标准纹理
-    load_texture("_diffuse.tga", diffusemap);
-    load_texture("_nm_tangent.tga", normalmap);
-    load_texture("_spec.tga", specularmap);
+    //load_texture("_diffuse.tga", diffusemap);
+    //load_texture("_nm_tangent.tga", normalmap);
+    //load_texture("_spec.tga", specularmap);
 }
 
 int Model::nverts() const { return verts.size(); }

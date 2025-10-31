@@ -12,8 +12,7 @@ template<int n> struct vec {
 template<int n> double operator*(const vec<n>& lhs, const vec<n>& rhs) {
     /* 向量的点积操作 */
     double ret = 0;                        
-    //for (int i = n; i--; ret += lhs[i] * rhs[i]);
-    for (int i = n; i >= 0; --i) ret += lhs[i] * rhs[i];
+    for (int i = 0; i < n; i++) ret += lhs[i] * rhs[i];
     return ret;                           
 }
 
@@ -96,6 +95,22 @@ template<int n> struct dt;
 
 template<int nrows, int ncols> struct mat {
     vec<ncols> rows[nrows] = { {} }; // 行向量数组，如rows[0]是一个vec<ncols>类型的向量
+
+    mat() = default; // 默认构造
+
+    mat(std::initializer_list<vec<ncols>> list) { //列表初始化构造
+        // 安全检查
+        if (list.size() != nrows) {
+            throw std::out_of_range("mat: 初始值列表的行数与矩阵行数不匹配");
+        }
+
+        size_t i = 0;
+        // 遍历 initializer_list，将其内容复制到 rows 数组中
+        for (const auto& row : list) {
+            rows[i] = row;
+            i++;
+        }
+    }
 
     vec<ncols>& operator[] (const int idx) { assert(idx >= 0 && idx < nrows); return rows[idx]; }
     const vec<ncols>& operator[] (const int idx) const { assert(idx >= 0 && idx < nrows); return rows[idx]; }
