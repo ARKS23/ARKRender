@@ -5,7 +5,7 @@
 #include "model.h"
 #include <iostream>
 #include "Renderer.h"
-#include "FlatShader.h"
+#include "PhongShader.h"
 #include <cmath>        
 #include <windows.h>    
 
@@ -41,6 +41,7 @@ mat<4, 4> lookat(vec3 eye, vec3 center, vec3 up) {
 }
 
 mat<4, 4> projection(double fov_y_degrees, double aspect_ratio, double n, double f) {
+    /* 透视投影 */
     // 1. 计算 r 和 t
     double fov_y_radians = fov_y_degrees * M_PI / 180.0;
     double t = n * std::tan(fov_y_radians / 2.0);
@@ -75,7 +76,7 @@ int main()
 
     Renderer renderer(width, height);
     Model monsterModel(FILEPATH);
-    FlatShader shader;
+    PhongShader shader;
 
     // 设置镜头 (Projection 矩阵)
     renderer.set_projectionMatrix(projection(60.0, (double)width / height, 0.1, 100.0));
@@ -84,7 +85,7 @@ int main()
     renderer.set_viewportMatrix(0, 0, width, height);
 
     // 设置 Model 矩阵 (让模型保持在原点)
-    shader.modelMatrix = identity();
+    shader.setModelMatrix(identity());
 
     vec3 eye = { 10, 0, 10 }; // 相机位置(按键改变)
     vec3 center = { 0, 0, 0 }; // 看向原点
@@ -119,6 +120,12 @@ int main()
         };
         renderer.set_viewMatrix(lookat(eye, center, up)); // 更新view矩阵
 
+        // 设置shader
+        shader.setModelMatrix(identity());
+        shader.modelMatrix_invert_transpose = identity().invert_transpose();
+        shader.camera_pos_world = eye;
+        shader.light_dir_world = normalized(vec3{ 0, 0, 1 });  // 光源来自z+
+
         if (!isInput) continue;
 
         // 清理缓冲区
@@ -133,7 +140,7 @@ int main()
         final_image.write_tga_file(OUTPATH);
 
         // 60fps  (1000ms / 16)
-        Sleep(16);
+        //Sleep(16);
     }
     return 0;
 }

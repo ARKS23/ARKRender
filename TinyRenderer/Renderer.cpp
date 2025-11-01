@@ -39,7 +39,7 @@ void Renderer::draw(Model* model, IShader* shader)
 	/* 外部调用的绘制函数 */
 	mat<4, 4> VP = projectionMatrix * viewMatrix;
 
-	for (int i = 0; i < model->nfaces(); ++i) {
+	for (int i = 0; i < model->nfaces(); ++i) { // 面处理
 		vec4 clip_coords[3];   // 裁剪空间坐标
 		vec4 screen_coords[3]; // 最终的屏幕坐标
 
@@ -94,8 +94,8 @@ void Renderer::rasterize(vec4* screen_coords, IShader* shader)
 	for (int i = 0; i < 3; ++i) pts[i] = screen_coords[i].xyz();
 
 	// ================================================================================测试
-	TGAColor test_color;
-	for (int c = 0; c < 3; c++) test_color[c] = std::rand() % 255; // 随机颜色填入
+	// TGAColor test_color;
+	// for (int c = 0; c < 3; c++) test_color[c] = std::rand() % 255; // 随机颜色填入
 	// ================================================================================测试
 
 
@@ -110,11 +110,11 @@ void Renderer::rasterize(vec4* screen_coords, IShader* shader)
 			int z_buffer_index = x + y * framebuffer.width();
 
 
-			if (z_interopolated > zbuffer[z_buffer_index]) { // 这里与左手或右手坐标系有关
+			if (z_interopolated > zbuffer[z_buffer_index]) {
 				TGAColor color;
-				//if (!shader->fragment(bary, color)) continue; // TODO: shader决定丢弃则不进行操作
+				if (!shader->fragment(bary, color)) continue; // TODO: shader决定丢弃则不进行操作
 				zbuffer[z_buffer_index] = z_interopolated;
-				framebuffer.set(x, y, test_color);
+				framebuffer.set(x, y, color);
 			}
 		}
 	}

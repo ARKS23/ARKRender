@@ -5,18 +5,18 @@
 
 class drawLineUtils {
 private:
-    drawLineUtils() {} // ¹¤¾ßÀà£¬²»½øÐÐÊµÀý»¯
+    drawLineUtils() {} // ï¿½ï¿½ï¿½ï¿½ï¿½à£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Êµï¿½ï¿½ï¿½ï¿½
 
 public:
-    // ÏßÐÔ²åÖµ»­Ïß
+    // ï¿½ï¿½ï¿½Ô²ï¿½Öµï¿½ï¿½ï¿½ï¿½
     static void lerpDrawLine(TGAImage& framebuffer, std::vector<int> stratPoint, std::vector<int> endPoint, float steps, TGAColor color);
 
-    // BresenhamËã·¨»­Ïß
+    // Bresenhamï¿½ã·¨ï¿½ï¿½ï¿½ï¿½
     static void BresenhamLine(TGAImage& framebuffer, const std::vector<int> &stratPoint, const std::vector<int> &endPoint, const TGAColor &color);
 
-    // »æÖÆÈý½ÇÐÎ
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     static void drawTriangle(TGAImage& framebuffer, const std::vector<int> &point1, const std::vector<int> &point2, const std::vector<int> &point3, const std::vector<TGAColor> &colorVec);
 
-    // ²âÊÔº¯Êý
+    // ï¿½ï¿½ï¿½Ôºï¿½ï¿½ï¿½
     static void drawLineTest();
 };

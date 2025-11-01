@@ -24,5 +24,11 @@ public:
 		输出: 最终的颜色（传出参数返回）
 		返回值： true则绘制，false则丢弃
 	*/
+
+	virtual mat<4, 4> getModelMatrix() = 0;
+	/* 获取modelMatrix */
+
+	virtual void setModelMatrix(mat<4, 4> matrix) = 0;
+	/* 设置modelMatrix */
 };
 

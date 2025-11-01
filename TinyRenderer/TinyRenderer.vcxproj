@@ -131,6 +131,7 @@
     <ClCompile Include="FlatShader.cpp" />
     <ClCompile Include="IShader.cpp" />
     <ClCompile Include="model.cpp" />
+    <ClCompile Include="PhongShader.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="tgaimage.cpp" />
     <ClCompile Include="TinyRenderer.cpp" />
@@ -141,6 +142,7 @@
     <ClInclude Include="geometry.h" />
     <ClInclude Include="IShader.h" />
     <ClInclude Include="model.h" />
+    <ClInclude Include="PhongShader.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="tgaimage.h" />
   </ItemGroup>
