@@ -34,5 +34,5 @@ public:
 
     const TGAImage& diffuse() const; // 获取漫反射贴图
     const TGAImage& specular() const; // 获取高光贴图
-
+    const TGAImage& normal() const; // 获取法线贴图
 };

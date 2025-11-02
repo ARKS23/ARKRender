@@ -13,8 +13,8 @@
 
 const int width = 800;
 const int height = 800;
-const std::string FILEPATH = "E:/code/TinyRenderer/obj/diablo3_pose.obj";
-const std::string OUTPATH = "E:/code/TinyRenderer/images/monster.tga";
+const std::string FILEPATH = "E:/code/TinyRenderer/obj/african_head.obj";
+const std::string OUTPATH = "E:/code/TinyRenderer/images/african_head.tga";
 
 
 mat<4, 4> lookat(vec3 eye, vec3 center, vec3 up) {
@@ -70,13 +70,14 @@ mat<4, 4> identity() {
 
 int main()
 {
-    // --- 1. 初始化 (在循环外只执行一次) ---
-    std::cout << "初始化渲染器" << std::endl;
-    std::cout << "按下键盘左右按键旋转摄像机，\n按下ESC退出" << std::endl;
-
     Renderer renderer(width, height);
     Model monsterModel(FILEPATH);
     PhongShader shader;
+    shader.model_ptr = &monsterModel;
+
+    // --- 1. 初始化 ---
+    std::cout << "初始化渲染器" << std::endl;
+    std::cout << "按下键盘左右按键旋转摄像机，\n按下ESC退出" << std::endl;
 
     // 设置镜头 (Projection 矩阵)
     renderer.set_projectionMatrix(projection(60.0, (double)width / height, 0.1, 100.0));
@@ -115,7 +116,7 @@ int main()
         // 使用三角函数计算相机在X和Z轴上的新位置，使其围绕(0,0,0)旋转
         vec3 eye = {
             (float)(sin(cameraAngle) * cameraRadius), // X
-            1.f,                                      // Y (保持一点高度)
+            -0.5,                                      // Y (保持一点高度)
             (float)(cos(cameraAngle) * cameraRadius)  // Z
         };
         renderer.set_viewMatrix(lookat(eye, center, up)); // 更新view矩阵
@@ -144,4 +145,3 @@ int main()
     }
     return 0;
 }
-

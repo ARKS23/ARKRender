@@ -93,11 +93,6 @@ void Renderer::rasterize(vec4* screen_coords, IShader* shader)
 	vec3 pts[3]; // ´æ´¢3DÆÁÄ»×ø±ê£¨x, y, z£©
 	for (int i = 0; i < 3; ++i) pts[i] = screen_coords[i].xyz();
 
-	// ================================================================================²âÊÔ
-	// TGAColor test_color;
-	// for (int c = 0; c < 3; c++) test_color[c] = std::rand() % 255; // Ëæ»úÑÕÉ«ÌîÈë
-	// ================================================================================²âÊÔ
-
 
 	for (int x = static_cast<int>(bbox_min.x); x <= static_cast<int>(bbox_max.x); ++x) {
 		for (int y = static_cast<int>(bbox_min.y); y <= static_cast<int>(bbox_max.y); ++y) {

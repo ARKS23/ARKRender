@@ -57,9 +57,9 @@ Model::Model(const std::string filename) {
         std::cerr << "texture file " << texfile << " loading " << (img.read_tga_file(texfile.c_str()) ? "ok" : "failed") << std::endl;
         };
     // 尝试加载三种标准纹理
-    //load_texture("_diffuse.tga", diffusemap);
-    //load_texture("_nm_tangent.tga", normalmap);
-    //load_texture("_spec.tga", specularmap);
+    load_texture("_diffuse.tga", diffusemap);
+    load_texture("_nm_tangent.tga", normalmap);
+    load_texture("_spec.tga", specularmap);
 }
 
 int Model::nverts() const { return verts.size(); }
@@ -73,13 +73,13 @@ vec4 Model::vert(const int iface, const int nthvert) const { //获取第iface个面的
     return verts[facet_vrt[iface * 3 + nthvert]];
 }
 
-vec4 Model::normal(const int iface, const int nthvert) const {
+vec4 Model::normal(const int iface, const int nthvert) const { // 模型自带的法线，精度没有法线贴图高
     return norms[facet_nrm[iface * 3 + nthvert]];
 }
 
-vec4 Model::normal(const vec2& uv) const { // TODO:待处理
+vec4 Model::normal(const vec2& uv) const { // 法线贴图纹理：从normal_map中获取法线
     TGAColor c = normalmap.get(uv[0] * normalmap.width(), uv[1] * normalmap.height());
-    return normalized(vec4{ (double)c[2],(double)c[1],(double)c[0],0 }*2. / 255. - vec4{ 1,1,1,0 });
+    return normalized(vec4{ (double)c[2],(double)c[1],(double)c[0],0 }*2. / 255. - vec4{ 1,1,1,0 }); // RGBA数值逆映射回坐标
 }
 
 vec2 Model::uv(const int iface, const int nthvert) const {
@@ -88,3 +88,4 @@ vec2 Model::uv(const int iface, const int nthvert) const {
 
 const TGAImage& Model::diffuse()  const { return diffusemap; }
 const TGAImage& Model::specular() const { return specularmap; }
+const TGAImage& Model::normal() const {return normalmap;}

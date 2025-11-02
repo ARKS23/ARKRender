@@ -26,5 +26,6 @@ private:
 	vec3 varying_normals_world[3];			// 变换到世界空间的法线
 	vec2 varying_uvs[3];					// 变换到世界空间的uv坐标
 	vec3 varying_pos_world[3];				// 变换到世界空间的顶点位置
+	mat<3, 3> varying_TBN[3];				// TBN矩阵：Tangent-to-World
 };
 
