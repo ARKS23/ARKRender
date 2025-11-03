@@ -39,6 +39,9 @@
     <ClCompile Include="PhongShader.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="DepthShader.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="geometry.h">
@@ -63,6 +66,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="PhongShader.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DepthShader.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

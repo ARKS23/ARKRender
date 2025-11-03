@@ -11,6 +11,10 @@ public:
 	vec3 light_dir_world;					// 光源在世界中的方向
 	Model* model_ptr = nullptr;				// 指向模型来访问纹理
 
+	/* shadow mapping */
+	TGAImage* shadow_map_texture = nullptr;  // 阴影贴图
+	mat<4, 4> matrix_shadow_transform;			 // 顶点从世界空间变换到光源屏幕空间的矩阵
+
 
 public:
 	virtual vec4 vertex(Model* model, int iface, int nthvert, const mat<4, 4>& ViewProjectionMatrix);

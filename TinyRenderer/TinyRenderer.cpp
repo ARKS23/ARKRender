@@ -6,6 +6,7 @@
 #include <iostream>
 #include "Renderer.h"
 #include "PhongShader.h"
+#include "DepthShader.h"
 #include <cmath>        
 #include <windows.h>    
 
@@ -15,6 +16,7 @@ const int width = 800;
 const int height = 800;
 const std::string FILEPATH = "E:/code/TinyRenderer/obj/african_head.obj";
 const std::string OUTPATH = "E:/code/TinyRenderer/images/african_head.tga";
+const std::string OUTPATH_SHADING = "E:/code/TinyRenderer/images/african_head_shading.tga";
 
 
 mat<4, 4> lookat(vec3 eye, vec3 center, vec3 up) {
@@ -68,27 +70,54 @@ mat<4, 4> identity() {
     } };
 }
 
+mat<4, 4> orthographic(float left, float right, float bottom, float top, float near_, float far_) {
+    /* 正交投影矩阵用于定向光的计算 */
+    mat<4, 4> m = {
+        {2.f / (right - left), 0, 0, -(left + right) / (right - left)},
+        {0, 2.f / (top - bottom), 0, -(bottom + top) / (top - bottom)},
+        {0, 0, -1.f / (far_ - near_), -(far_ + near_) / (far_ - near_)},
+        {0, 0, 0, 1}
+    };
+
+    return m;
+}
+
+mat<4, 4> viewport(int x, int y, int w, int h) {
+    mat<4, 4> m = {
+                        {w / 2.0, 0, 0, x + w / 2.0},
+                        {0, h / 2.0, 0, y + h / 2.0},
+                        {0, 0, 1.0, 0},
+                        {0, 0, 0, 1}
+    };
+    return m;
+}
+
+mat<4, 4> rotation_y(float angle_radians) {
+    /* 绕y轴转的旋转矩阵 */
+    float c = cos(angle_radians);
+    float s = sin(angle_radians);
+    return {
+        {c, 0, s, 0},
+        {0, 1, 0, 0},
+        {-s, 0, c, 0},
+        {0, 0, 0, 1}
+    };
+}
+
 int main()
 {
     Renderer renderer(width, height);
     Model monsterModel(FILEPATH);
-    PhongShader shader;
-    shader.model_ptr = &monsterModel;
+
+    /* 着色器设置 */
+    PhongShader phong_shader;
+    DepthShader depth_shader;
 
     // --- 1. 初始化 ---
     std::cout << "初始化渲染器" << std::endl;
     std::cout << "按下键盘左右按键旋转摄像机，\n按下ESC退出" << std::endl;
 
-    // 设置镜头 (Projection 矩阵)
-    renderer.set_projectionMatrix(projection(60.0, (double)width / height, 0.1, 100.0));
-
-    // 设置视口 (Viewport 矩阵)
-    renderer.set_viewportMatrix(0, 0, width, height);
-
-    // 设置 Model 矩阵 (让模型保持在原点)
-    shader.setModelMatrix(identity());
-
-    vec3 eye = { 10, 0, 10 }; // 相机位置(按键改变)
+    vec3 eye = { 3, 0, 3 }; // 相机位置(按键改变)
     vec3 center = { 0, 0, 0 }; // 看向原点
     vec3 up = { 0, 1, 0 }; // Y轴上方向为“上”
 
@@ -96,6 +125,14 @@ int main()
     float cameraAngle = 0.f; //相机当前的旋转角度
     const float cameraRadius = 3.f;  // 相机距中心点距离
     const float rotationSpeed = 0.05f;  // 相机旋转幅度
+
+    // 模型状态相关
+    float modelAngle = 0.f;
+
+    // 光源设置
+    vec3 light_dir = normalized(vec3({ 1, 0, 0 })); // 光的方向
+    vec3 light_pos = light_dir * 3.f;               // 光源位置
+    TGAImage shadow_map_texture(width, height, TGAImage::RGB); // 阴影贴图
 
     while (true)
     {
@@ -105,36 +142,68 @@ int main()
             break;
         }
         if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
-            cameraAngle -= rotationSpeed;
+            //cameraAngle -= rotationSpeed;
+            modelAngle -= rotationSpeed;
             isInput = true;
         }
         if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
-            cameraAngle += rotationSpeed;
+            //cameraAngle += rotationSpeed;
+            modelAngle += rotationSpeed;
             isInput = true;
         }
 
+        if (!isInput) continue;
+
+        /*
         // 使用三角函数计算相机在X和Z轴上的新位置，使其围绕(0,0,0)旋转
         vec3 eye = {
             (float)(sin(cameraAngle) * cameraRadius), // X
             -0.5,                                      // Y (保持一点高度)
             (float)(cos(cameraAngle) * cameraRadius)  // Z
         };
-        renderer.set_viewMatrix(lookat(eye, center, up)); // 更新view矩阵
+        */
 
-        // 设置shader
-        shader.setModelMatrix(identity());
-        shader.modelMatrix_invert_transpose = identity().invert_transpose();
-        shader.camera_pos_world = eye;
-        shader.light_dir_world = normalized(vec3{ 0, 0, 1 });  // 光源来自z+
+        mat<4, 4> modelMatrix = rotation_y(modelAngle); // 模型旋转矩阵
 
-        if (!isInput) continue;
+        /* 光源的变换矩阵 */
+        mat<4, 4> lightView = lookat(light_pos, center, up);
+        mat<4, 4> lightProjection = orthographic(-1.f, 1.f, -1.f, 1.f, 0.1f, 100.f); // 光源视角用正交投影
+        mat<4, 4> lightViewPort = viewport(0, 0, width, height);
+        mat<4, 4> matrix_shadow_transform = lightViewPort * lightProjection * lightView;
 
-        // 清理缓冲区
+        /* 相机的变换矩阵 */
+        mat<4, 4> CameraView = lookat(eye, center, up);
+        mat<4, 4> CameraProjection = projection(60.0, (double)width / height, 0.1, 100.0);
+        mat<4, 4> CameraViewport = viewport(0, 0, width, height);
+
+        /* 渲染阴影贴图 */
+        renderer.set_viewMatrix(lightView);
+        renderer.set_projectionMatrix(lightProjection);
+        renderer.set_viewportMatrix(0, 0, width, height);
+        depth_shader.setModelMatrix(modelMatrix); // 模型旋转，传入模型旋转矩阵
         renderer.clear_framebuffer(black);
         renderer.clear_zbuffer();
+        renderer.draw(&monsterModel, &depth_shader);
+        shadow_map_texture = renderer.get_framebuffer();
+        shadow_map_texture.write_tga_file(OUTPATH_SHADING);
 
-        // 绘制
-        renderer.draw(&monsterModel, &shader);
+        /* 渲染最终场景 */
+        renderer.set_viewMatrix(CameraView);
+        renderer.set_projectionMatrix(CameraProjection);
+        renderer.set_viewportMatrix(0, 0, width, height);
+
+        /* PhongShader设置 */
+        phong_shader.setModelMatrix(modelMatrix); // 模型旋转，传入模型旋转矩阵
+        phong_shader.modelMatrix_invert_transpose = identity().invert_transpose();
+        phong_shader.camera_pos_world = eye;
+        phong_shader.light_dir_world = light_dir;
+        phong_shader.model_ptr = &monsterModel;
+        phong_shader.shadow_map_texture = &shadow_map_texture; // 传入阴影贴图
+        phong_shader.matrix_shadow_transform = matrix_shadow_transform; // 传入光源MVP变换矩阵
+
+        renderer.clear_framebuffer(black);
+        renderer.clear_zbuffer();
+        renderer.draw(&monsterModel, &phong_shader);
 
         // 保存结果
         TGAImage& final_image = renderer.get_framebuffer();

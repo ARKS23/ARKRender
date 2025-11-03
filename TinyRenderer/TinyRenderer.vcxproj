@@ -127,6 +127,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DepthShader.cpp" />
     <ClCompile Include="drawLine.cpp" />
     <ClCompile Include="FlatShader.cpp" />
     <ClCompile Include="IShader.cpp" />
@@ -137,6 +138,7 @@
     <ClCompile Include="TinyRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DepthShader.h" />
     <ClInclude Include="drawLine.h" />
     <ClInclude Include="FlatShader.h" />
     <ClInclude Include="geometry.h" />

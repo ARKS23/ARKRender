@@ -11,7 +11,7 @@ void Renderer::clear_framebuffer(TGAColor color)
 void Renderer::clear_zbuffer()
 {
 	// zbuffer清除
-	std::fill(zbuffer.begin(), zbuffer.end(), -std::numeric_limits<float>::infinity());
+	std::fill(zbuffer.begin(), zbuffer.end(), std::numeric_limits<float>::infinity());
 }
 
 void Renderer::set_viewMatrix(mat<4, 4> matrix)
@@ -45,7 +45,7 @@ void Renderer::draw(Model* model, IShader* shader)
 
 		// 顶点着色器
 		for (int j = 0; j < 3; ++j) {
-			clip_coords[j] = shader->vertex(model, i, j, VP);
+			clip_coords[j] = shader->vertex(model, i, j, VP); // shader的函数执行完整的MVP变换返回裁剪坐标系
 		}
 
 		// 固定管线: NDC + 视口变换
@@ -89,11 +89,10 @@ void Renderer::rasterize(vec4* screen_coords, IShader* shader)
 		bbox_max.y = std::max(bbox_max.y, screen_coords[i].y);
 	}
 
-	// 遍历像素
 	vec3 pts[3]; // 存储3D屏幕坐标（x, y, z）
 	for (int i = 0; i < 3; ++i) pts[i] = screen_coords[i].xyz();
 
-
+	// 遍历像素
 	for (int x = static_cast<int>(bbox_min.x); x <= static_cast<int>(bbox_max.x); ++x) {
 		for (int y = static_cast<int>(bbox_min.y); y <= static_cast<int>(bbox_max.y); ++y) {
 			vec2 curP = { x, y };
@@ -105,9 +104,9 @@ void Renderer::rasterize(vec4* screen_coords, IShader* shader)
 			int z_buffer_index = x + y * framebuffer.width();
 
 
-			if (z_interopolated > zbuffer[z_buffer_index]) {
+			if (z_interopolated < zbuffer[z_buffer_index]) {
 				TGAColor color;
-				if (!shader->fragment(bary, color)) continue; // TODO: shader决定丢弃则不进行操作
+				if (!shader->fragment(bary, color)) continue; // shader决定丢弃则不进行操作
 				zbuffer[z_buffer_index] = z_interopolated;
 				framebuffer.set(x, y, color);
 			}
