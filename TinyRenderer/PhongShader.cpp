@@ -57,11 +57,11 @@ bool PhongShader::fragment(vec3 barycentric, TGAColor& out_color)
 	/* shadow mapping计算 */
 	// 当前光源的世界坐标 -> 光源的裁剪空间
 	vec4 pos_ligth_clip = matrix_shadow_transform * vec4({interpolate_pos.x, interpolate_pos.y , interpolate_pos.z, 1.0});
-	// 得到光源视角的NDC坐标
+	// 得到光源视角的NDC坐标 [-1, 1]
 	vec3 pos_light_ndc = (pos_ligth_clip / pos_ligth_clip.w).xyz();
-	// 光源的NDC坐标转换为shadow map的UV坐标
+	// 光源的NDC坐标转换为shadow map的UV坐标 [0, 1] 
 	vec2 shadow_uv = vec2({ pos_light_ndc.x, pos_light_ndc.y }) * 0.5 + vec2({0.5, 0.5});
-	// 读取shadow_map存储的最近深度
+	// 读取shadow_map存储的最近深度解码回depth （编码过程在DepthShader）
 	float shadow_depth_from_map = shadow_map_texture->get(shadow_uv.x * shadow_map_texture->width(), shadow_uv.y * shadow_map_texture->height()).bgra[0] / 255.f;
 	// 获取当前像素的真正NDC深度（光源视角）
 	float current_depth_from_light = pos_light_ndc.z;

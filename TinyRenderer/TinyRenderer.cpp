@@ -75,7 +75,8 @@ mat<4, 4> orthographic(float left, float right, float bottom, float top, float n
     mat<4, 4> m = {
         {2.f / (right - left), 0, 0, -(left + right) / (right - left)},
         {0, 2.f / (top - bottom), 0, -(bottom + top) / (top - bottom)},
-        {0, 0, -1.f / (far_ - near_), -(far_ + near_) / (far_ - near_)},
+        // 修正: 使用 LHS 的 Z-Mapping (0 到 1)
+        {0, 0, 1.f / (far_ - near_), -near_ / (far_ - near_)},
         {0, 0, 0, 1}
     };
 
@@ -167,9 +168,8 @@ int main()
 
         /* 光源的变换矩阵 */
         mat<4, 4> lightView = lookat(light_pos, center, up);
-        mat<4, 4> lightProjection = orthographic(-1.f, 1.f, -1.f, 1.f, 0.1f, 100.f); // 光源视角用正交投影
-        mat<4, 4> lightViewPort = viewport(0, 0, width, height);
-        mat<4, 4> matrix_shadow_transform = lightViewPort * lightProjection * lightView;
+        mat<4, 4> lightProjection = orthographic(-1.f, 1.f, -1.f, 1.f, 1.f, 5.f); // 光源视角用正交投影
+        mat<4, 4> matrix_shadow_transform = lightProjection * lightView;
 
         /* 相机的变换矩阵 */
         mat<4, 4> CameraView = lookat(eye, center, up);
@@ -185,7 +185,7 @@ int main()
         renderer.clear_zbuffer();
         renderer.draw(&monsterModel, &depth_shader);
         shadow_map_texture = renderer.get_framebuffer();
-        shadow_map_texture.write_tga_file(OUTPATH_SHADING);
+        shadow_map_texture.write_tga_file(OUTPATH_SHADING); // 灰度图
 
         /* 渲染最终场景 */
         renderer.set_viewMatrix(CameraView);
@@ -194,7 +194,7 @@ int main()
 
         /* PhongShader设置 */
         phong_shader.setModelMatrix(modelMatrix); // 模型旋转，传入模型旋转矩阵
-        phong_shader.modelMatrix_invert_transpose = identity().invert_transpose();
+        phong_shader.modelMatrix_invert_transpose = modelMatrix.invert_transpose();
         phong_shader.camera_pos_world = eye;
         phong_shader.light_dir_world = light_dir;
         phong_shader.model_ptr = &monsterModel;
