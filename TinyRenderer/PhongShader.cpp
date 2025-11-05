@@ -1,4 +1,5 @@
 #include "PhongShader.h"
+#define M_PI 3.14159265358979323846
 
 vec4 PhongShader::vertex(Model* model, int iface, int nthvert, const mat<4, 4>& ViewProjectionMatrix)
 {
@@ -38,13 +39,10 @@ bool PhongShader::fragment(vec3 barycentric, TGAColor& out_color)
 {
 	/* 线性插值(让模型显得更平滑不再方格化) */
 	double alpha = barycentric.x, beta = barycentric.y, gamma = barycentric.z;
-	// 法线插值并重新单位化（使用法线贴图后不再使用这个模型自带的法线）
-	//vec3 interpolate_normal = normalized(varying_normals_world[0] * alpha + varying_normals_world[1] * beta + varying_normals_world[2] * gamma);
 	// 插值uv坐标
 	vec2 interpolate_uv = varying_uvs[0] * alpha + varying_uvs[1] * beta + varying_uvs[2] * gamma;
 	// 插值世界坐标
 	vec3 interpolate_pos = varying_pos_world[0] * alpha + varying_pos_world[1] * beta + varying_pos_world[2] * gamma;
-
 	// 插值TBN矩阵
 	mat<3, 3> interp_TBN = varying_TBN[0] * alpha + varying_TBN[1] * beta + varying_TBN[2] * gamma;
 
@@ -54,13 +52,13 @@ bool PhongShader::fragment(vec3 barycentric, TGAColor& out_color)
 	vec3 n_tangent = normalized(model_ptr->normal(interpolate_uv).xyz());  // 读取法线贴图
 	vec3 n_world = normalized(interp_TBN * n_tangent); // 法线从切线空间变换到世界空间
 
-	/* shadow mapping计算 */
+	/* shadow mapping计算: 向光源查询该世界坐标的像素点对应的深度，然后进行比较 */
 	// 当前光源的世界坐标 -> 光源的裁剪空间
 	vec4 pos_ligth_clip = matrix_shadow_transform * vec4({interpolate_pos.x, interpolate_pos.y , interpolate_pos.z, 1.0});
 	// 得到光源视角的NDC坐标 [-1, 1]
 	vec3 pos_light_ndc = (pos_ligth_clip / pos_ligth_clip.w).xyz();
 	// 光源的NDC坐标转换为shadow map的UV坐标 [0, 1] 
-	vec2 shadow_uv = vec2({ pos_light_ndc.x, pos_light_ndc.y }) * 0.5 + vec2({0.5, 0.5});
+	vec2 shadow_uv = vec2({ pos_light_ndc.x, pos_light_ndc.y }) * 0.5 + vec2({0.5, 0.5}); // u = (x + 1) / 2 ; v = (y + 1) / 2
 	// 读取shadow_map存储的最近深度解码回depth （编码过程在DepthShader）
 	float shadow_depth_from_map = shadow_map_texture->get(shadow_uv.x * shadow_map_texture->width(), shadow_uv.y * shadow_map_texture->height()).bgra[0] / 255.f;
 	// 获取当前像素的真正NDC深度（光源视角）
@@ -69,6 +67,38 @@ bool PhongShader::fragment(vec3 barycentric, TGAColor& out_color)
 	float bias = 0.005f;
 	bool in_shadow = current_depth_from_light > shadow_depth_from_map + bias;
 
+	/* SSAO */
+	float occlusion_factor = 1.f;  // 1.0完全照亮， 0.0完全遮蔽
+	if (zbuffer_texture_for_ao) {  // zbuffer贴图传入则进行环境光遮蔽计算操作
+		// 获取当前像素的屏幕坐标 (x, y) 和深度 z
+		int screen_x = static_cast<int>(interpolate_pos.x);
+		int screen_y = static_cast<int>(interpolate_pos.y);
+		float current_z = interpolate_pos.z;
+
+		/* 采样 */
+		float total_occlusion = 0.f;
+		int n_samples = 8;		// 周围8个方向上采样
+		float sample_radius = 10.f;	// 检查10像素的半径
+
+		for (float angle = 0.f; angle < M_PI * 2.f; angle += (M_PI * 2.f) / n_samples) {
+			int neighbor_x = screen_x + static_cast<int>(cos(angle) * sample_radius);
+			int neighbor_y = screen_y + static_cast<int>(sin(angle) * sample_radius);
+
+			// 不采样屏幕外
+			if (neighbor_x < 0 || neighbor_x >= zbuffer_texture_for_ao->width() || neighbor_y < 0 || neighbor_y >= zbuffer_texture_for_ao->height()) {
+				continue;
+			}
+
+			// 读取zbuffer贴图
+			float neighbor_depth = zbuffer_texture_for_ao->get(neighbor_x, neighbor_y).bgra[0] / 255.f; // [0, 1] 范围
+			
+			// 左手坐标系，越小越近；0.01防止自我遮蔽
+			if (neighbor_depth < current_z - 0.01f) {
+				total_occlusion += 1.f;		// 邻居离光源更近，增加遮蔽系数
+			}
+			occlusion_factor = max(0.0f, 1.0f - (total_occlusion / n_samples));
+		}
+	}
 
 	/* 应用Blinn Pong模型 */
 	// 光泽度系数
@@ -76,6 +106,7 @@ bool PhongShader::fragment(vec3 barycentric, TGAColor& out_color)
 	// 环境光 (该模型的的环境光是让物体本身的颜色乘以一个环境光系数，让物体不至于太暗)
 	float ka = 0.1f;
 	vec3 ambient = { diffuse_color.bgra[2] * ka, diffuse_color.bgra[1] * ka, diffuse_color.bgra[0] * ka };
+	ambient = ambient * occlusion_factor; // 增加环境光遮蔽
 
 	// 漫反射（该模型中不考虑出射方向，看的是像素法线和光源方向之间的夹角）（若法线正对光源则kd为1，若成90度则为0，套个max防止穿透）
 	float kd = max(0.f, static_cast<float>(n_world * light_dir_world));

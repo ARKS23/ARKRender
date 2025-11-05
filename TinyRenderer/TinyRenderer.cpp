@@ -17,6 +17,7 @@ const int height = 800;
 const std::string FILEPATH = "E:/code/TinyRenderer/obj/african_head.obj";
 const std::string OUTPATH = "E:/code/TinyRenderer/images/african_head.tga";
 const std::string OUTPATH_SHADING = "E:/code/TinyRenderer/images/african_head_shading.tga";
+const std::string OUTPATH_ZBUFFER = "E:/code/TinyRenderer/images/african_head_zbuffer.tga";
 
 
 mat<4, 4> lookat(vec3 eye, vec3 center, vec3 up) {
@@ -83,16 +84,6 @@ mat<4, 4> orthographic(float left, float right, float bottom, float top, float n
     return m;
 }
 
-mat<4, 4> viewport(int x, int y, int w, int h) {
-    mat<4, 4> m = {
-                        {w / 2.0, 0, 0, x + w / 2.0},
-                        {0, h / 2.0, 0, y + h / 2.0},
-                        {0, 0, 1.0, 0},
-                        {0, 0, 0, 1}
-    };
-    return m;
-}
-
 mat<4, 4> rotation_y(float angle_radians) {
     /* 绕y轴转的旋转矩阵 */
     float c = cos(angle_radians);
@@ -133,7 +124,10 @@ int main()
     // 光源设置
     vec3 light_dir = normalized(vec3({ 1, 0, 0 })); // 光的方向
     vec3 light_pos = light_dir * 3.f;               // 光源位置
+
+    // 贴图
     TGAImage shadow_map_texture(width, height, TGAImage::RGB); // 阴影贴图
+    TGAImage zbuffer_texture(width, height, TGAImage::RGB); // SSAO深度贴图
 
     while (true)
     {
@@ -174,7 +168,6 @@ int main()
         /* 相机的变换矩阵 */
         mat<4, 4> CameraView = lookat(eye, center, up);
         mat<4, 4> CameraProjection = projection(60.0, (double)width / height, 0.1, 100.0);
-        mat<4, 4> CameraViewport = viewport(0, 0, width, height);
 
         /* 渲染阴影贴图 */
         renderer.set_viewMatrix(lightView);
@@ -185,7 +178,17 @@ int main()
         renderer.clear_zbuffer();
         renderer.draw(&monsterModel, &depth_shader);
         shadow_map_texture = renderer.get_framebuffer();
-        shadow_map_texture.write_tga_file(OUTPATH_SHADING); // 灰度图
+        shadow_map_texture.write_tga_file(OUTPATH_SHADING); // 阴影贴图
+
+        /* 渲染相机视角的Zbuffer */
+        renderer.set_viewMatrix(CameraView);
+        renderer.set_projectionMatrix(CameraProjection);
+        depth_shader.setModelMatrix(modelMatrix); // 复用深度shader，该shader只画深度
+        renderer.clear_framebuffer(black);
+        renderer.clear_zbuffer();
+        renderer.draw(&monsterModel, &depth_shader);
+        zbuffer_texture = renderer.get_framebuffer();
+        zbuffer_texture.write_tga_file(OUTPATH_ZBUFFER); // zbuffer贴图
 
         /* 渲染最终场景 */
         renderer.set_viewMatrix(CameraView);
@@ -200,6 +203,8 @@ int main()
         phong_shader.model_ptr = &monsterModel;
         phong_shader.shadow_map_texture = &shadow_map_texture; // 传入阴影贴图
         phong_shader.matrix_shadow_transform = matrix_shadow_transform; // 传入光源MVP变换矩阵
+
+        phong_shader.zbuffer_texture_for_ao = &zbuffer_texture; // 传入zbuffer贴图进行SSAO
 
         renderer.clear_framebuffer(black);
         renderer.clear_zbuffer();

@@ -15,6 +15,8 @@ public:
 	TGAImage* shadow_map_texture = nullptr;  // 阴影贴图
 	mat<4, 4> matrix_shadow_transform;			 // 顶点从世界空间变换到光源屏幕空间的矩阵
 
+	/* SSAO */
+	TGAImage* zbuffer_texture_for_ao = nullptr; // 环境光遮蔽需要用到的zbuffer贴图
 
 public:
 	virtual vec4 vertex(Model* model, int iface, int nthvert, const mat<4, 4>& ViewProjectionMatrix);
